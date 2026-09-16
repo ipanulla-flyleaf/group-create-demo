@@ -186,74 +186,94 @@ function renderFilterModal() {
   </div>`
 }
 
+const COLS = `
+  <colgroup>
+    <col style="width:76px" />
+    <col style="width:24%" />
+    <col style="width:14%" />
+    <col style="width:8%" />
+    <col style="width:22%" />
+    <col />
+  </colgroup>`
+
 function renderFilterRow() {
   const filtered = isFiltered()
+  if (!filtered) return ''
+
   const available = availableStudents().length
-  const selected = filtered ? members().filter(matchesFilter).length : members().length
+  const selected = members().filter(matchesFilter).length
 
   const label = (n, kind) => {
     const noun = n === 1 ? 'student' : 'students'
-    const suffix = filtered ? ` ${n === 1 ? 'matches' : 'match'} your current filter` : ''
+    const suffix = ` ${n === 1 ? 'matches' : 'match'} your current filter`
     return `${n} <strong>${kind}</strong> ${noun}${suffix}`
   }
 
   return `
   <div class="filter-row">
     <span>${label(available, 'Unselected')}</span>
-    ${
-      filtered
-        ? `<button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>`
-        : ''
-    }
+    <button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>
 
     <div class="filter-row-side">
       <span>${label(selected, 'Selected')}</span>
-      <button type="button" class="filter-btn ${filtered ? 'active' : ''}" id="filter-btn"
-        aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
-      </button>
     </div>
   </div>`
 }
 
-function renderTable() {
-  const rows = availableStudents()
+function renderFab() {
+  const filtered = isFiltered()
+  return `
+  <button type="button" class="fab ${filtered ? 'active' : ''}" id="filter-btn"
+    aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
+  </button>`
+}
+
+function renderGridHead(rows) {
+  const arrow = (key) =>
+    state.sort.key === key ? (state.sort.dir === 'asc' ? '↑' : '↓') : '⇅'
+
+  return `
+  <div class="panel-head grid-head">
+    <table class="students">
+      ${COLS}
+      <thead>
+        <tr>
+          <th class="col-add">
+            <button type="button" class="bulk-btn" id="add-all" ${
+              rows.length ? '' : 'disabled'
+            } title="Add all ${rows.length} listed students">+ ${
+              isFiltered() ? rows.length : 'All'
+            }</button>
+          </th>
+          <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
+            'name'
+          )}</span></button></th>
+          <th><button type="button" class="th-btn" data-sort="id">Student ID <span aria-hidden="true">${arrow(
+            'id'
+          )}</span></button></th>
+          <th><button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
+            'grade'
+          )}</span></button></th>
+          <th>Current Unit(s)</th>
+          <th>Assigned Group(s)</th>
+        </tr>
+      </thead>
+    </table>
+  </div>`
+}
+
+function renderGridBody(rows) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   if (state.page > totalPages) state.page = totalPages
   const start = (state.page - 1) * PAGE_SIZE
   const pageRows = rows.slice(start, start + PAGE_SIZE)
 
-  const arrow = (key) =>
-    state.sort.key === key ? (state.sort.dir === 'asc' ? '↑' : '↓') : '⇅'
-
-  const filtered = isFiltered()
-
   return `
   <section class="card students-card">
     <div class="table-scroll">
       <table class="students">
-        <thead>
-          <tr>
-            <th class="col-add">
-              <button type="button" class="bulk-btn" id="add-all" ${
-                rows.length ? '' : 'disabled'
-              } title="Add all ${rows.length} listed students">+ ${
-                filtered ? rows.length : 'All'
-              }</button>
-            </th>
-            <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
-              'name'
-            )}</span></button></th>
-            <th><button type="button" class="th-btn" data-sort="id">Student ID <span aria-hidden="true">${arrow(
-              'id'
-            )}</span></button></th>
-            <th><button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
-              'grade'
-            )}</span></button></th>
-            <th>Current Unit(s)</th>
-            <th>Assigned Group(s)</th>
-          </tr>
-        </thead>
+        ${COLS}
         <tbody>
           ${
             pageRows.length
@@ -303,22 +323,23 @@ function renderTable() {
   </section>`
 }
 
-function renderGroupPanel() {
-  const all = members()
+function renderGroupHead(all, list) {
+  return `
+  <div class="panel-head group-head">
+    <h2>${all.length} Student(s) in this group</h2>
+    <button type="button" class="bulk-btn" id="remove-all" ${
+      list.length ? '' : 'disabled'
+    } title="Remove all ${list.length} listed students">${
+      isFiltered() ? `&minus; ${list.length}` : 'Remove All'
+    }</button>
+  </div>`
+}
+
+function renderGroupBody(list) {
   const filtered = isFiltered()
-  const list = filtered ? all.filter(matchesFilter) : all
 
   return `
   <aside class="card group-card">
-    <div class="card-head">
-      <h2>${all.length} Student(s) in this group</h2>
-      <button type="button" class="bulk-btn" id="remove-all" ${
-        list.length ? '' : 'disabled'
-      } title="Remove all ${list.length} listed students">${
-        filtered ? `&minus; ${list.length}` : 'Remove All'
-      }</button>
-    </div>
-
     <ul class="group-list">
       ${
         list.length
@@ -349,15 +370,22 @@ function renderGroupPanel() {
 }
 
 function render() {
+  const rows = availableStudents()
+  const all = members()
+  const list = isFiltered() ? all.filter(matchesFilter) : all
+
   document.querySelector('#app').innerHTML = `
     ${renderHeader()}
     <main class="workspace-wrap">
       <div class="workspace">
+        ${renderGridHead(rows)}
+        ${renderGroupHead(all, list)}
         ${renderFilterRow()}
-        ${renderTable()}
-        ${renderGroupPanel()}
+        ${renderGridBody(rows)}
+        ${renderGroupBody(list)}
       </div>
     </main>
+    ${renderFab()}
     ${renderFilterModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`
 }

@@ -217,40 +217,43 @@ body {
   margin: 28px 40px 40px;
 }
 
-.filter-btn {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: none;
+.fab {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 50;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--purple);
+  box-shadow: 0 6px 18px rgba(18, 40, 76, 0.35);
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.filter-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: var(--purple);
+.fab svg {
+  width: 22px;
+  height: 22px;
+  fill: #fff;
 }
 
-.filter-btn:hover,
-.filter-btn[aria-expanded='true'] {
-  border-color: var(--purple);
-  background: #fff;
+.fab:hover {
+  background: var(--purple-bright);
 }
 
-.filter-btn.active::after {
+.fab.active::after {
   content: '';
   position: absolute;
-  top: 1px;
-  right: 1px;
-  width: 7px;
-  height: 7px;
+  top: 6px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--purple-bright);
+  border: 2px solid var(--purple);
+  background: #58c98f;
 }
 
 .modal-overlay {
@@ -325,12 +328,36 @@ body {
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(18, 40, 76, 0.12);
   overflow: hidden;
   min-height: 620px;
+}
+
+.panel-head {
+  background: #f7f5fc;
+  min-width: 0;
+}
+
+.grid-head {
+  border-right: 1px solid var(--line);
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+}
+
+.group-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--purple);
 }
 
 .filter-row {
@@ -368,13 +395,6 @@ body {
   align-items: center;
   gap: 12px;
   padding: 18px 20px;
-}
-
-.card-head h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--purple);
 }
 
 /* ---------- students table ---------- */
@@ -418,12 +438,11 @@ body {
 
 table.students {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
 table.students thead th {
-  position: sticky;
-  top: 0;
   background: #f7f5fc;
   text-align: left;
   font-size: 14px;
@@ -438,6 +457,8 @@ table.students td {
   border-bottom: 1px solid var(--line-soft);
   color: #4b5563;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 table.students tbody tr:hover {
