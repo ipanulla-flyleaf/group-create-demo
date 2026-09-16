@@ -17,6 +17,7 @@ const state = {
   unit: UNITS[0].name,
   teachers: ['Charlotte Davis', 'Daniel Evans'],
   search: '',
+  groupSearch: '',
   sort: { key: 'name', dir: 'asc' },
   gradeFilter: '',
   filterOpen: false,
@@ -201,7 +202,6 @@ function renderFilterRow() {
   if (!filtered) return ''
 
   const available = availableStudents().length
-  const selected = members().filter(matchesFilter).length
 
   const label = (n, kind) => {
     const noun = n === 1 ? 'student' : 'students'
@@ -213,20 +213,7 @@ function renderFilterRow() {
   <div class="filter-row">
     <span>${label(available, 'Unselected')}</span>
     <button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>
-
-    <div class="filter-row-side">
-      <span>${label(selected, 'Selected')}</span>
-    </div>
   </div>`
-}
-
-function renderFab() {
-  const filtered = isFiltered()
-  return `
-  <button type="button" class="fab ${filtered ? 'active' : ''}" id="filter-btn"
-    aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
-    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
-  </button>`
 }
 
 function renderGridHead(rows) {
@@ -256,7 +243,13 @@ function renderGridHead(rows) {
             'grade'
           )}</span></button></th>
           <th>Current Unit(s)</th>
-          <th>Assigned Group(s)</th>
+          <th class="col-last">
+            <span>Assigned Group(s)</span>
+            <button type="button" class="filter-btn ${isFiltered() ? 'active' : ''}" id="filter-btn"
+              aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
+            </button>
+          </th>
         </tr>
       </thead>
     </table>
@@ -326,20 +319,28 @@ function renderGridBody(rows) {
 function renderGroupHead(all, list) {
   return `
   <div class="panel-head group-head">
-    <h2>${all.length} Student(s) in this group</h2>
-    <button type="button" class="bulk-btn" id="remove-all" ${
-      list.length ? '' : 'disabled'
-    } title="Remove all ${list.length} listed students">${
-      isFiltered() ? `&minus; ${list.length}` : 'Remove All'
-    }</button>
+    <div class="group-head-top">
+      <h2>${all.length} Student(s) in this group</h2>
+      <button type="button" class="bulk-btn" id="remove-all" ${
+        list.length ? '' : 'disabled'
+      } title="Remove all ${list.length} listed students">Remove All</button>
+    </div>
+
+    <div class="search group-search">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
+      <input id="group-search" type="search" placeholder="Search students in this group"
+        aria-label="Search students in this group" value="${escapeHtml(state.groupSearch)}" />
+    </div>
   </div>`
 }
 
-function renderGroupBody(list) {
-  const filtered = isFiltered()
+function renderGroupBody(all, list) {
+  const searching = Boolean(state.groupSearch.trim())
 
   return `
   <aside class="card group-card">
+    ${renderGroupHead(all, list)}
+
     <ul class="group-list">
       ${
         list.length
@@ -356,8 +357,8 @@ function renderGroupBody(list) {
         </li>`
               )
               .join('')
-          : filtered
-            ? `<li class="group-empty">No students in this group match your current filter.</li>`
+          : searching
+            ? `<li class="group-empty">No students in this group match your search.</li>`
             : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
       }
     </ul>
@@ -372,20 +373,21 @@ function renderGroupBody(list) {
 function render() {
   const rows = availableStudents()
   const all = members()
-  const list = isFiltered() ? all.filter(matchesFilter) : all
+  const term = state.groupSearch.trim().toLowerCase()
+  const list = term
+    ? all.filter((s) => fullName(s).toLowerCase().includes(term) || s.id.includes(term))
+    : all
 
   document.querySelector('#app').innerHTML = `
     ${renderHeader()}
     <main class="workspace-wrap">
       <div class="workspace">
         ${renderGridHead(rows)}
-        ${renderGroupHead(all, list)}
         ${renderFilterRow()}
         ${renderGridBody(rows)}
-        ${renderGroupBody(list)}
+        ${renderGroupBody(all, list)}
       </div>
     </main>
-    ${renderFab()}
     ${renderFilterModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`
 }
@@ -455,7 +457,7 @@ app.addEventListener('click', (event) => {
   }
 
   if (target.id === 'remove-all') {
-    const listed = isFiltered() ? members().filter(matchesFilter) : members()
+    const listed = members()
     listed.forEach((s) => state.memberIds.delete(s.id))
     state.page = 1
     render()
@@ -536,12 +538,17 @@ document.addEventListener('keydown', (event) => {
 })
 
 app.addEventListener('input', (event) => {
-  if (event.target.id === 'search') {
-    state.search = event.target.value
-    state.page = 1
+  if (event.target.id === 'search' || event.target.id === 'group-search') {
+    const id = event.target.id
+    if (id === 'search') {
+      state.search = event.target.value
+      state.page = 1
+    } else {
+      state.groupSearch = event.target.value
+    }
     const caret = event.target.selectionStart
     render()
-    const input = document.querySelector('#search')
+    const input = document.querySelector(`#${id}`)
     input.focus()
     input.setSelectionRange(caret, caret)
     return

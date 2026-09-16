@@ -217,43 +217,46 @@ body {
   margin: 28px 40px 40px;
 }
 
-.fab {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-  z-index: 50;
-  width: 56px;
-  height: 56px;
-  border: none;
-  border-radius: 50%;
-  background: var(--purple);
-  box-shadow: 0 6px 18px rgba(18, 40, 76, 0.35);
+.col-last span {
+  vertical-align: middle;
+}
+
+.filter-btn {
+  position: relative;
+  float: right;
+  width: 28px;
+  height: 28px;
+  margin-top: -3px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.fab svg {
-  width: 22px;
-  height: 22px;
-  fill: #fff;
+.filter-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--purple);
 }
 
-.fab:hover {
-  background: var(--purple-bright);
+.filter-btn:hover,
+.filter-btn[aria-expanded='true'] {
+  border-color: var(--purple);
+  background: #fff;
 }
 
-.fab.active::after {
+.filter-btn.active::after {
   content: '';
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 12px;
-  height: 12px;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  border: 2px solid var(--purple);
-  background: #58c98f;
+  background: var(--purple-bright);
 }
 
 .modal-overlay {
@@ -343,30 +346,50 @@ body {
 }
 
 .grid-head {
+  grid-area: 1 / 1;
+  align-self: start;
+  display: flex;
   border-right: 1px solid var(--line);
 }
 
 .group-head {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 20px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 20px 10px;
 }
 
-.group-head h2 {
+.group-head-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.group-head-top h2 {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
   color: var(--purple);
 }
 
+.group-head-top .bulk-btn {
+  margin-left: auto;
+}
+
+.group-search input {
+  height: 34px;
+  border-radius: 999px;
+  background: #fff;
+}
+
 .filter-row {
-  grid-column: 1 / -1;
+  grid-area: 2 / 1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  height: 40px;
-  padding-left: 16px;
+  min-height: 40px;
+  padding: 6px 16px;
   background: #e8f4fd;
   border: 1px solid #9cc9ea;
   color: var(--muted);
@@ -376,18 +399,6 @@ body {
 .filter-row strong {
   font-weight: 700;
   color: var(--ink);
-}
-
-.filter-row-side {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-left: auto;
-  width: 360px;
-  height: 100%;
-  padding: 0 12px 0 20px;
-  border-left: 1px solid #9cc9ea;
 }
 
 .card-head {
@@ -400,6 +411,7 @@ body {
 /* ---------- students table ---------- */
 
 .students-card {
+  grid-area: 3 / 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -434,6 +446,10 @@ body {
 .table-scroll {
   flex: 1;
   overflow: auto;
+}
+
+.grid-head table.students {
+  width: 100%;
 }
 
 table.students {
@@ -652,6 +668,7 @@ td.name {
 /* ---------- group panel ---------- */
 
 .group-card {
+  grid-area: 1 / 2 / 4 / 3;
   display: flex;
   flex-direction: column;
   min-height: 0;
