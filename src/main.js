@@ -77,6 +77,12 @@ function pageNumbers(current, total) {
   return [1, '…', current - 1, current, current + 1, '…', total]
 }
 
+function renderActions() {
+  return `
+    <button type="button" class="btn ghost" data-action="discard">DISCARD</button>
+    <button type="button" class="btn primary" data-action="save">SAVE</button>`
+}
+
 function renderHeader() {
   const selected = new Set(state.teachers)
   return `
@@ -89,7 +95,11 @@ function renderHeader() {
 
   <div class="page-head">
     <a class="back-link" href="#">&larr; Back to Washington Elementary School</a>
-    <h1>Form a Group</h1>
+
+    <div class="title-row">
+      <h1>Form a Group</h1>
+      <div class="head-actions" id="head-actions">${renderActions()}</div>
+    </div>
 
     <div class="form-row">
       <label class="field">
@@ -189,7 +199,7 @@ function renderFilterModal() {
 
 const COLS = `
   <colgroup>
-    <col style="width:76px" />
+    <col style="width:92px" />
     <col style="width:24%" />
     <col style="width:14%" />
     <col style="width:8%" />
@@ -212,6 +222,11 @@ function renderFilterRow() {
   return `
   <div class="filter-row">
     <span>${label(available, 'Unselected')}</span>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
+    <button type="button" class="link-btn" id="add-all" ${
+      available ? '' : 'disabled'
+    }>Add All To Group</button>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
     <button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>
   </div>`
 }
@@ -227,11 +242,13 @@ function renderGridHead(rows) {
       <thead>
         <tr>
           <th class="col-add">
-            <button type="button" class="bulk-btn" id="add-all" ${
-              rows.length ? '' : 'disabled'
-            } title="Add all ${rows.length} listed students">+ ${
-              isFiltered() ? rows.length : 'All'
-            }</button>
+            ${
+              isFiltered()
+                ? `<span class="sr-only">Add</span>`
+                : `<button type="button" class="bulk-btn" id="add-all" ${
+                    rows.length ? '' : 'disabled'
+                  } title="Add all ${rows.length} listed students">Add All</button>`
+            }
           </th>
           <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
             'name'
@@ -362,11 +379,6 @@ function renderGroupBody(all, list) {
             : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
       }
     </ul>
-
-    <div class="group-actions">
-      <button type="button" class="btn ghost" id="discard">DISCARD</button>
-      <button type="button" class="btn primary" id="save">SAVE</button>
-    </div>
   </aside>`
 }
 
@@ -388,8 +400,30 @@ function render() {
         ${renderGroupBody(all, list)}
       </div>
     </main>
+    <div class="sticky-bar" id="sticky-bar">
+      <span class="sticky-title">Form a Group</span>
+      <div class="head-actions">${renderActions()}</div>
+    </div>
     ${renderFilterModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`
+
+  watchHeadActions()
+}
+
+let headActionsObserver
+
+function watchHeadActions() {
+  headActionsObserver?.disconnect()
+
+  const anchor = document.querySelector('#head-actions')
+  const bar = document.querySelector('#sticky-bar')
+  if (!anchor || !bar) return
+
+  headActionsObserver = new IntersectionObserver(
+    ([entry]) => bar.classList.toggle('show', !entry.isIntersecting),
+    { threshold: 1 }
+  )
+  headActionsObserver.observe(anchor)
 }
 
 function toast(message) {
@@ -509,7 +543,7 @@ app.addEventListener('click', (event) => {
     return
   }
 
-  if (target.id === 'discard') {
+  if (target.dataset.action === 'discard') {
     state.memberIds.clear()
     state.page = 1
     render()
@@ -517,7 +551,7 @@ app.addEventListener('click', (event) => {
     return
   }
 
-  if (target.id === 'save') {
+  if (target.dataset.action === 'save') {
     toast(`Saved "${state.groupName}" with ${state.memberIds.size} student(s).`)
   }
 })

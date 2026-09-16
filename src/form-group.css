@@ -91,11 +91,57 @@ body {
   text-decoration: underline;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .page-head h1 {
   margin: 4px 0 20px;
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.3px;
+}
+
+.head-actions {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  margin-bottom: 16px;
+}
+
+.sticky-bar {
+  position: fixed;
+  top: 12px;
+  right: 40px;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 12px 8px 24px;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(18, 40, 76, 0.25);
+  opacity: 0;
+  transform: translateY(-16px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sticky-bar.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.sticky-title {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sticky-bar .head-actions {
+  margin: 0;
 }
 
 .form-row {
@@ -401,6 +447,10 @@ body {
   color: var(--ink);
 }
 
+.filter-row-sep {
+  color: #9cc9ea;
+}
+
 .card-head {
   display: flex;
   align-items: center;
@@ -517,7 +567,7 @@ td.name {
 }
 
 .col-add {
-  width: 72px;
+  width: 92px;
   text-align: left;
   padding-left: 16px !important;
 }
@@ -711,14 +761,6 @@ td.name {
   padding: 40px 20px;
   color: var(--muted);
   text-align: center;
-}
-
-.group-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--line);
 }
 
 .btn {
