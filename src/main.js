@@ -212,10 +212,19 @@ function renderFilterRow() {
   return `
   <div class="filter-row">
     <span>${label(available, 'Unselected')}</span>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
+    <button type="button" class="link-btn" id="add-all" ${
+      available ? '' : 'disabled'
+    }>Add All To Group</button>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
     <button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>
 
     <div class="filter-row-side">
       <span>${label(selected, 'Selected')}</span>
+      <span class="filter-row-sep" aria-hidden="true">|</span>
+      <button type="button" class="link-btn" id="remove-all" ${
+        selected ? '' : 'disabled'
+      }>Remove From Group</button>
     </div>
   </div>`
 }
@@ -239,13 +248,7 @@ function renderGridHead(rows) {
       ${COLS}
       <thead>
         <tr>
-          <th class="col-add">
-            <button type="button" class="bulk-btn" id="add-all" ${
-              rows.length ? '' : 'disabled'
-            } title="Add all ${rows.length} listed students">+ ${
-              isFiltered() ? rows.length : 'All'
-            }</button>
-          </th>
+          <th class="col-add"><span class="sr-only">Add</span></th>
           <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
             'name'
           )}</span></button></th>
@@ -323,15 +326,10 @@ function renderGridBody(rows) {
   </section>`
 }
 
-function renderGroupHead(all, list) {
+function renderGroupHead(all) {
   return `
   <div class="panel-head group-head">
     <h2>${all.length} Student(s) in this group</h2>
-    <button type="button" class="bulk-btn" id="remove-all" ${
-      list.length ? '' : 'disabled'
-    } title="Remove all ${list.length} listed students">${
-      isFiltered() ? `&minus; ${list.length}` : 'Remove All'
-    }</button>
   </div>`
 }
 
@@ -379,7 +377,7 @@ function render() {
     <main class="workspace-wrap">
       <div class="workspace">
         ${renderGridHead(rows)}
-        ${renderGroupHead(all, list)}
+        ${renderGroupHead(all)}
         ${renderFilterRow()}
         ${renderGridBody(rows)}
         ${renderGroupBody(list)}

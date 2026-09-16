@@ -363,10 +363,11 @@ body {
 .filter-row {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  height: 40px;
-  padding-left: 16px;
+  min-height: 40px;
+  padding: 6px 0 6px 16px;
   background: #e8f4fd;
   border: 1px solid #9cc9ea;
   color: var(--muted);
@@ -378,14 +379,22 @@ body {
   color: var(--ink);
 }
 
+.filter-row-sep {
+  color: #9cc9ea;
+}
+
+.filter-row .bulk-btn {
+  background: transparent;
+}
+
 .filter-row-side {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  align-self: stretch;
   gap: 12px;
   margin-left: auto;
   width: 360px;
-  height: 100%;
   padding: 0 12px 0 20px;
   border-left: 1px solid #9cc9ea;
 }
