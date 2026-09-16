@@ -17,8 +17,11 @@ const state = {
   unit: UNITS[0].name,
   teachers: ['Charlotte Davis', 'Daniel Evans'],
   search: '',
+  groupSearch: '',
+  groupPage: 1,
   sort: { key: 'name', dir: 'asc' },
   gradeFilter: '',
+  filterOpen: false,
   page: 1,
   memberIds: new Set(),
 }
@@ -32,17 +35,17 @@ const escapeHtml = (value) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   )
 
-function availableStudents() {
+const isFiltered = () => Boolean(state.search.trim() || state.gradeFilter)
+
+function matchesFilter(s) {
+  if (state.gradeFilter && s.grade !== state.gradeFilter) return false
   const term = state.search.trim().toLowerCase()
-  let rows = ALL_STUDENTS.filter((s) => !state.memberIds.has(s.id))
+  if (!term) return true
+  return fullName(s).toLowerCase().includes(term) || s.id.includes(term)
+}
 
-  if (state.gradeFilter) rows = rows.filter((s) => s.grade === state.gradeFilter)
-
-  if (term) {
-    rows = rows.filter(
-      (s) => fullName(s).toLowerCase().includes(term) || s.id.includes(term)
-    )
-  }
+function availableStudents() {
+  const rows = ALL_STUDENTS.filter((s) => !state.memberIds.has(s.id) && matchesFilter(s))
 
   const dir = state.sort.dir === 'asc' ? 1 : -1
   return rows.sort((a, b) => {
@@ -75,6 +78,19 @@ function pageNumbers(current, total) {
   return [1, '…', current - 1, current, current + 1, '…', total]
 }
 
+function groupPageNumbers(current, total) {
+  if (total <= 4) return Array.from({ length: total }, (_, i) => i + 1)
+  if (current <= 3) return [1, 2, 3, '…', total]
+  if (current >= total - 2) return [1, '…', total - 2, total - 1, total]
+  return [1, '…', current - 1, current, current + 1, '…', total]
+}
+
+function renderActions() {
+  return `
+    <button type="button" class="btn ghost" data-action="discard">DISCARD</button>
+    <button type="button" class="btn primary" data-action="save">SAVE</button>`
+}
+
 function renderHeader() {
   const selected = new Set(state.teachers)
   return `
@@ -87,7 +103,11 @@ function renderHeader() {
 
   <div class="page-head">
     <a class="back-link" href="#">&larr; Back to Washington Elementary School</a>
-    <h1>Form a Group</h1>
+
+    <div class="title-row">
+      <h1>Form a Group</h1>
+      <div class="head-actions" id="head-actions">${renderActions()}</div>
+    </div>
 
     <div class="form-row">
       <label class="field">
@@ -139,76 +159,139 @@ function renderHeader() {
   </div>`
 }
 
-function renderTable() {
-  const rows = availableStudents()
+function renderFilterModal() {
+  if (!state.filterOpen) return ''
+
+  return `
+  <div class="modal-overlay" id="filter-overlay">
+    <div class="filter-pop" id="filter-pop" role="dialog" aria-modal="true" aria-label="Filter students">
+      <div class="filter-pop-head">
+        <strong>Filter</strong>
+        <button type="button" class="icon-btn remove" id="filter-close" aria-label="Close filter">&times;</button>
+      </div>
+
+      <label class="filter-field">
+        <span>Search</span>
+        <div class="search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
+          <input id="search" type="search" placeholder="Name or student ID" value="${escapeHtml(
+            state.search
+          )}" />
+        </div>
+      </label>
+
+      <label class="filter-field">
+        <span>Grade</span>
+        <select id="grade-filter">
+          <option value="">All grades</option>
+          ${['K', '1', '2', '3', '4', '5']
+            .map(
+              (g) =>
+                `<option value="${g}" ${
+                  state.gradeFilter === g ? 'selected' : ''
+                }>${g}</option>`
+            )
+            .join('')}
+        </select>
+      </label>
+
+      <div class="filter-pop-foot">
+        <button type="button" class="link-btn" data-clear-filter ${
+          isFiltered() ? '' : 'disabled'
+        }>Clear filter(s)</button>
+        <button type="button" class="btn primary" id="filter-done">DONE</button>
+      </div>
+    </div>
+  </div>`
+}
+
+const COLS = `
+  <colgroup>
+    <col style="width:92px" />
+    <col style="width:24%" />
+    <col style="width:14%" />
+    <col style="width:8%" />
+    <col style="width:22%" />
+    <col />
+  </colgroup>`
+
+function renderFilterRow() {
+  const filtered = isFiltered()
+  if (!filtered) return ''
+
+  const available = availableStudents().length
+
+  const label = (n, kind) => {
+    const noun = n === 1 ? 'student' : 'students'
+    const suffix = ` ${n === 1 ? 'matches' : 'match'} your current filter`
+    return `${n} <strong>${kind}</strong> ${noun}${suffix}`
+  }
+
+  return `
+  <div class="filter-row">
+    <span>${label(available, 'Unselected')}</span>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
+    <button type="button" class="link-btn" id="add-all" ${
+      available ? '' : 'disabled'
+    }>Add All To Group</button>
+    <span class="filter-row-sep" aria-hidden="true">|</span>
+    <button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>
+  </div>`
+}
+
+function renderGridHead(rows) {
+  const arrow = (key) =>
+    state.sort.key === key ? (state.sort.dir === 'asc' ? '↑' : '↓') : '⇅'
+
+  return `
+  <div class="panel-head grid-head">
+    <table class="students">
+      ${COLS}
+      <thead>
+        <tr>
+          <th class="col-add">
+            ${
+              isFiltered()
+                ? `<span class="sr-only">Add</span>`
+                : `<button type="button" class="bulk-btn" id="add-all" ${
+                    rows.length ? '' : 'disabled'
+                  } title="Add all ${rows.length} listed students">Add All</button>`
+            }
+          </th>
+          <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
+            'name'
+          )}</span></button></th>
+          <th><button type="button" class="th-btn" data-sort="id">Student ID <span aria-hidden="true">${arrow(
+            'id'
+          )}</span></button></th>
+          <th><button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
+            'grade'
+          )}</span></button></th>
+          <th>Current Unit(s)</th>
+          <th class="col-last">
+            <span>Assigned Group(s)</span>
+            <button type="button" class="filter-btn ${isFiltered() ? 'active' : ''}" id="filter-btn"
+              aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
+            </button>
+          </th>
+        </tr>
+      </thead>
+    </table>
+  </div>`
+}
+
+function renderGridBody(rows) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   if (state.page > totalPages) state.page = totalPages
   const start = (state.page - 1) * PAGE_SIZE
   const pageRows = rows.slice(start, start + PAGE_SIZE)
 
-  const arrow = (key) =>
-    state.sort.key === key ? (state.sort.dir === 'asc' ? '↑' : '↓') : '⇅'
-
-  const isFiltered = Boolean(state.search.trim() || state.gradeFilter)
-
   return `
   <section class="card students-card">
-    <div class="card-head">
-      <h2>All Students</h2>
-      <div class="search">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
-        <input id="search" type="search" placeholder="Search" value="${escapeHtml(state.search)}" />
-      </div>
-    </div>
-
     <div class="table-scroll">
-      <table class="students ${isFiltered ? 'has-summary' : ''}">
-        <thead>
-          ${
-            isFiltered
-              ? `<tr class="filter-summary">
-            <th colspan="6">${rows.length} ${
-              rows.length === 1 ? 'Student' : 'Students'
-            } match your current filter</th>
-          </tr>`
-              : ''
-          }
-          <tr>
-            <th class="col-add">
-              <button type="button" class="bulk-btn" id="add-all" ${
-                rows.length ? '' : 'disabled'
-              } title="Add all ${rows.length} listed students">+ ${
-                isFiltered ? rows.length : 'All'
-              }</button>
-            </th>
-            <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
-              'name'
-            )}</span></button></th>
-            <th><button type="button" class="th-btn" data-sort="id">Student ID <span aria-hidden="true">${arrow(
-              'id'
-            )}</span></button></th>
-            <th>
-              <div class="th-filter">
-                <button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
-                  'grade'
-                )}</span></button>
-                <select id="grade-filter" aria-label="Filter by grade">
-                  <option value="">All</option>
-                  ${['K', '1', '2', '3', '4', '5']
-                    .map(
-                      (g) =>
-                        `<option value="${g}" ${
-                          state.gradeFilter === g ? 'selected' : ''
-                        }>${g}</option>`
-                    )
-                    .join('')}
-                </select>
-              </div>
-            </th>
-            <th>Current Unit(s)</th>
-            <th>Assigned Group(s)</th>
-          </tr>
-        </thead>
+      <table class="students">
+        ${COLS}
         <tbody>
           ${
             pageRows.length
@@ -258,54 +341,122 @@ function renderTable() {
   </section>`
 }
 
-function renderGroupPanel() {
-  const list = members()
+function renderGroupHead(all, list) {
   return `
-  <aside class="card group-card">
-    <div class="card-head">
-      <h2>Students in this Group</h2>
-      <span class="badge">${list.length}</span>
+  <div class="panel-head group-head">
+    <div class="group-head-top">
+      <h2>${all.length} Student(s) in this group</h2>
       <button type="button" class="bulk-btn" id="remove-all" ${
         list.length ? '' : 'disabled'
-      }>Remove All</button>
+      } title="Remove all ${list.length} listed students">Remove All</button>
     </div>
+
+    <div class="search group-search">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
+      <input id="group-search" type="search" placeholder="Search students in this group"
+        aria-label="Search students in this group" value="${escapeHtml(state.groupSearch)}" />
+    </div>
+  </div>`
+}
+
+function renderGroupBody(all, list) {
+  const searching = Boolean(state.groupSearch.trim())
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE))
+  if (state.groupPage > totalPages) state.groupPage = totalPages
+  const start = (state.groupPage - 1) * PAGE_SIZE
+  const pageItems = list.slice(start, start + PAGE_SIZE)
+
+  return `
+  <aside class="card group-card">
+    ${renderGroupHead(all, list)}
 
     <ul class="group-list">
       ${
-        list.length
-          ? list
+        pageItems.length
+          ? pageItems
               .map(
                 (s) => `
         <li class="group-item">
-          <div>
-            <div class="group-name">${escapeHtml(fullName(s))}</div>
-            <div class="group-id">ID ${escapeHtml(s.id)}</div>
-          </div>
+          <div class="group-name">${escapeHtml(fullName(s))} <span class="group-id">Grade ${escapeHtml(
+            s.grade
+          )}</span></div>
           <button type="button" class="icon-btn remove" data-remove="${s.id}" aria-label="Remove ${escapeHtml(
                   fullName(s)
                 )} from group">&times;</button>
         </li>`
               )
               .join('')
-          : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
+          : searching
+            ? `<li class="group-empty">No students in this group match your search.</li>`
+            : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
       }
     </ul>
 
-    <div class="group-actions">
-      <button type="button" class="btn ghost" id="discard">DISCARD</button>
-      <button type="button" class="btn primary" id="save">SAVE</button>
+    <div class="card-foot group-foot">
+      <nav class="pager" aria-label="Selected student pagination">
+        <button type="button" class="page-btn" data-group-page="${state.groupPage - 1}" ${
+          state.groupPage === 1 ? 'disabled' : ''
+        } aria-label="Previous selected student page">&lsaquo;</button>
+        ${groupPageNumbers(state.groupPage, totalPages)
+          .map((p) =>
+            p === '…'
+              ? `<span class="page-gap">…</span>`
+              : `<button type="button" class="page-btn ${
+                  p === state.groupPage ? 'current' : ''
+                }" data-group-page="${p}">${p}</button>`
+          )
+          .join('')}
+        <button type="button" class="page-btn" data-group-page="${state.groupPage + 1}" ${
+          state.groupPage === totalPages ? 'disabled' : ''
+        } aria-label="Next selected student page">&rsaquo;</button>
+      </nav>
+      <span class="count">${list.length} Students</span>
     </div>
   </aside>`
 }
 
 function render() {
+  const rows = availableStudents()
+  const all = members()
+  const term = state.groupSearch.trim().toLowerCase()
+  const list = term
+    ? all.filter((s) => fullName(s).toLowerCase().includes(term) || s.id.includes(term))
+    : all
+
   document.querySelector('#app').innerHTML = `
     ${renderHeader()}
-    <main class="workspace">
-      ${renderTable()}
-      ${renderGroupPanel()}
+    <main class="workspace-wrap">
+      <div class="workspace">
+        ${renderGridHead(rows)}
+        ${renderFilterRow()}
+        ${renderGridBody(rows)}
+        ${renderGroupBody(all, list)}
+      </div>
     </main>
+    <div class="sticky-bar" id="sticky-bar">
+      <span class="sticky-title">Form a Group</span>
+      <div class="head-actions">${renderActions()}</div>
+    </div>
+    ${renderFilterModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`
+
+  watchHeadActions()
+}
+
+let headActionsObserver
+
+function watchHeadActions() {
+  headActionsObserver?.disconnect()
+
+  const anchor = document.querySelector('#head-actions')
+  const bar = document.querySelector('#sticky-bar')
+  if (!anchor || !bar) return
+
+  headActionsObserver = new IntersectionObserver(
+    ([entry]) => bar.classList.toggle('show', !entry.isIntersecting),
+    { threshold: 1 }
+  )
+  headActionsObserver.observe(anchor)
 }
 
 function toast(message) {
@@ -373,11 +524,32 @@ app.addEventListener('click', (event) => {
   }
 
   if (target.id === 'remove-all') {
-    const removed = state.memberIds.size
-    state.memberIds.clear()
+    const listed = members()
+    listed.forEach((s) => state.memberIds.delete(s.id))
     state.page = 1
     render()
-    toast(`${removed} student(s) returned to the list.`)
+    toast(`${listed.length} student(s) returned to the list.`)
+    return
+  }
+
+  if (target.dataset.clearFilter !== undefined) {
+    state.search = ''
+    state.gradeFilter = ''
+    state.page = 1
+    render()
+    return
+  }
+
+  if (target.id === 'filter-btn') {
+    state.filterOpen = !state.filterOpen
+    render()
+    document.querySelector('#search')?.focus()
+    return
+  }
+
+  if (target.id === 'filter-close' || target.id === 'filter-done') {
+    state.filterOpen = false
+    render()
     return
   }
 
@@ -404,7 +576,13 @@ app.addEventListener('click', (event) => {
     return
   }
 
-  if (target.id === 'discard') {
+  if (target.dataset.groupPage) {
+    state.groupPage = Number(target.dataset.groupPage)
+    render()
+    return
+  }
+
+  if (target.dataset.action === 'discard') {
     state.memberIds.clear()
     state.page = 1
     render()
@@ -412,18 +590,39 @@ app.addEventListener('click', (event) => {
     return
   }
 
-  if (target.id === 'save') {
+  if (target.dataset.action === 'save') {
     toast(`Saved "${state.groupName}" with ${state.memberIds.size} student(s).`)
   }
 })
 
+document.addEventListener('click', (event) => {
+  if (state.filterOpen && event.target.id === 'filter-overlay') {
+    state.filterOpen = false
+    render()
+  }
+})
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.filterOpen) {
+    state.filterOpen = false
+    render()
+    document.querySelector('#filter-btn')?.focus()
+  }
+})
+
 app.addEventListener('input', (event) => {
-  if (event.target.id === 'search') {
-    state.search = event.target.value
-    state.page = 1
+  if (event.target.id === 'search' || event.target.id === 'group-search') {
+    const id = event.target.id
+    if (id === 'search') {
+      state.search = event.target.value
+      state.page = 1
+    } else {
+      state.groupSearch = event.target.value
+      state.groupPage = 1
+    }
     const caret = event.target.selectionStart
     render()
-    const input = document.querySelector('#search')
+    const input = document.querySelector(`#${id}`)
     input.focus()
     input.setSelectionRange(caret, caret)
     return
