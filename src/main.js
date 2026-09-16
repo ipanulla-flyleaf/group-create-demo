@@ -19,6 +19,7 @@ const state = {
   search: '',
   sort: { key: 'name', dir: 'asc' },
   gradeFilter: '',
+  filterOpen: false,
   page: 1,
   memberIds: new Set(),
 }
@@ -32,17 +33,17 @@ const escapeHtml = (value) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   )
 
-function availableStudents() {
+const isFiltered = () => Boolean(state.search.trim() || state.gradeFilter)
+
+function matchesFilter(s) {
+  if (state.gradeFilter && s.grade !== state.gradeFilter) return false
   const term = state.search.trim().toLowerCase()
-  let rows = ALL_STUDENTS.filter((s) => !state.memberIds.has(s.id))
+  if (!term) return true
+  return fullName(s).toLowerCase().includes(term) || s.id.includes(term)
+}
 
-  if (state.gradeFilter) rows = rows.filter((s) => s.grade === state.gradeFilter)
-
-  if (term) {
-    rows = rows.filter(
-      (s) => fullName(s).toLowerCase().includes(term) || s.id.includes(term)
-    )
-  }
+function availableStudents() {
+  const rows = ALL_STUDENTS.filter((s) => !state.memberIds.has(s.id) && matchesFilter(s))
 
   const dir = state.sort.dir === 'asc' ? 1 : -1
   return rows.sort((a, b) => {
@@ -139,6 +140,82 @@ function renderHeader() {
   </div>`
 }
 
+function renderFilterModal() {
+  if (!state.filterOpen) return ''
+
+  return `
+  <div class="modal-overlay" id="filter-overlay">
+    <div class="filter-pop" id="filter-pop" role="dialog" aria-modal="true" aria-label="Filter students">
+      <div class="filter-pop-head">
+        <strong>Filter</strong>
+        <button type="button" class="icon-btn remove" id="filter-close" aria-label="Close filter">&times;</button>
+      </div>
+
+      <label class="filter-field">
+        <span>Search</span>
+        <div class="search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
+          <input id="search" type="search" placeholder="Name or student ID" value="${escapeHtml(
+            state.search
+          )}" />
+        </div>
+      </label>
+
+      <label class="filter-field">
+        <span>Grade</span>
+        <select id="grade-filter">
+          <option value="">All grades</option>
+          ${['K', '1', '2', '3', '4', '5']
+            .map(
+              (g) =>
+                `<option value="${g}" ${
+                  state.gradeFilter === g ? 'selected' : ''
+                }>${g}</option>`
+            )
+            .join('')}
+        </select>
+      </label>
+
+      <div class="filter-pop-foot">
+        <button type="button" class="link-btn" data-clear-filter ${
+          isFiltered() ? '' : 'disabled'
+        }>Clear filter(s)</button>
+        <button type="button" class="btn primary" id="filter-done">DONE</button>
+      </div>
+    </div>
+  </div>`
+}
+
+function renderFilterRow() {
+  const filtered = isFiltered()
+  const available = availableStudents().length
+  const selected = filtered ? members().filter(matchesFilter).length : members().length
+
+  const label = (n, kind) => {
+    const noun = n === 1 ? 'student' : 'students'
+    const suffix = filtered ? ` ${n === 1 ? 'matches' : 'match'} your current filter` : ''
+    return `${n} <strong>${kind}</strong> ${noun}${suffix}`
+  }
+
+  return `
+  <div class="filter-row">
+    <span>${label(available, 'Unselected')}</span>
+    ${
+      filtered
+        ? `<button type="button" class="link-btn" data-clear-filter>Clear filter(s)</button>`
+        : ''
+    }
+
+    <div class="filter-row-side">
+      <span>${label(selected, 'Selected')}</span>
+      <button type="button" class="filter-btn ${filtered ? 'active' : ''}" id="filter-btn"
+        aria-label="Filter students" aria-expanded="${state.filterOpen}" title="Filter students">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 2.5h13l-5 6v5l-3-1.6V8.5z"/></svg>
+      </button>
+    </div>
+  </div>`
+}
+
 function renderTable() {
   const rows = availableStudents()
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
@@ -149,36 +226,19 @@ function renderTable() {
   const arrow = (key) =>
     state.sort.key === key ? (state.sort.dir === 'asc' ? '↑' : '↓') : '⇅'
 
-  const isFiltered = Boolean(state.search.trim() || state.gradeFilter)
+  const filtered = isFiltered()
 
   return `
   <section class="card students-card">
-    <div class="card-head">
-      <h2>All Students</h2>
-      <div class="search">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5"/><line x1="11" y1="11" x2="15" y2="15"/></svg>
-        <input id="search" type="search" placeholder="Search" value="${escapeHtml(state.search)}" />
-      </div>
-    </div>
-
     <div class="table-scroll">
-      <table class="students ${isFiltered ? 'has-summary' : ''}">
+      <table class="students">
         <thead>
-          ${
-            isFiltered
-              ? `<tr class="filter-summary">
-            <th colspan="6">${rows.length} ${
-              rows.length === 1 ? 'Student' : 'Students'
-            } match your current filter</th>
-          </tr>`
-              : ''
-          }
           <tr>
             <th class="col-add">
               <button type="button" class="bulk-btn" id="add-all" ${
                 rows.length ? '' : 'disabled'
               } title="Add all ${rows.length} listed students">+ ${
-                isFiltered ? rows.length : 'All'
+                filtered ? rows.length : 'All'
               }</button>
             </th>
             <th><button type="button" class="th-btn" data-sort="name">Student Name <span aria-hidden="true">${arrow(
@@ -187,24 +247,9 @@ function renderTable() {
             <th><button type="button" class="th-btn" data-sort="id">Student ID <span aria-hidden="true">${arrow(
               'id'
             )}</span></button></th>
-            <th>
-              <div class="th-filter">
-                <button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
-                  'grade'
-                )}</span></button>
-                <select id="grade-filter" aria-label="Filter by grade">
-                  <option value="">All</option>
-                  ${['K', '1', '2', '3', '4', '5']
-                    .map(
-                      (g) =>
-                        `<option value="${g}" ${
-                          state.gradeFilter === g ? 'selected' : ''
-                        }>${g}</option>`
-                    )
-                    .join('')}
-                </select>
-              </div>
-            </th>
+            <th><button type="button" class="th-btn" data-sort="grade">Grade <span aria-hidden="true">${arrow(
+              'grade'
+            )}</span></button></th>
             <th>Current Unit(s)</th>
             <th>Assigned Group(s)</th>
           </tr>
@@ -259,15 +304,19 @@ function renderTable() {
 }
 
 function renderGroupPanel() {
-  const list = members()
+  const all = members()
+  const filtered = isFiltered()
+  const list = filtered ? all.filter(matchesFilter) : all
+
   return `
   <aside class="card group-card">
     <div class="card-head">
-      <h2>Students in this Group</h2>
-      <span class="badge">${list.length}</span>
+      <h2>${all.length} Student(s) in this group</h2>
       <button type="button" class="bulk-btn" id="remove-all" ${
         list.length ? '' : 'disabled'
-      }>Remove All</button>
+      } title="Remove all ${list.length} listed students">${
+        filtered ? `&minus; ${list.length}` : 'Remove All'
+      }</button>
     </div>
 
     <ul class="group-list">
@@ -277,17 +326,18 @@ function renderGroupPanel() {
               .map(
                 (s) => `
         <li class="group-item">
-          <div>
-            <div class="group-name">${escapeHtml(fullName(s))}</div>
-            <div class="group-id">ID ${escapeHtml(s.id)}</div>
-          </div>
+          <div class="group-name">${escapeHtml(fullName(s))} <span class="group-id">Grade ${escapeHtml(
+            s.grade
+          )}</span></div>
           <button type="button" class="icon-btn remove" data-remove="${s.id}" aria-label="Remove ${escapeHtml(
                   fullName(s)
                 )} from group">&times;</button>
         </li>`
               )
               .join('')
-          : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
+          : filtered
+            ? `<li class="group-empty">No students in this group match your current filter.</li>`
+            : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
       }
     </ul>
 
@@ -301,10 +351,14 @@ function renderGroupPanel() {
 function render() {
   document.querySelector('#app').innerHTML = `
     ${renderHeader()}
-    <main class="workspace">
-      ${renderTable()}
-      ${renderGroupPanel()}
+    <main class="workspace-wrap">
+      <div class="workspace">
+        ${renderFilterRow()}
+        ${renderTable()}
+        ${renderGroupPanel()}
+      </div>
     </main>
+    ${renderFilterModal()}
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`
 }
 
@@ -373,11 +427,32 @@ app.addEventListener('click', (event) => {
   }
 
   if (target.id === 'remove-all') {
-    const removed = state.memberIds.size
-    state.memberIds.clear()
+    const listed = isFiltered() ? members().filter(matchesFilter) : members()
+    listed.forEach((s) => state.memberIds.delete(s.id))
     state.page = 1
     render()
-    toast(`${removed} student(s) returned to the list.`)
+    toast(`${listed.length} student(s) returned to the list.`)
+    return
+  }
+
+  if (target.dataset.clearFilter !== undefined) {
+    state.search = ''
+    state.gradeFilter = ''
+    state.page = 1
+    render()
+    return
+  }
+
+  if (target.id === 'filter-btn') {
+    state.filterOpen = !state.filterOpen
+    render()
+    document.querySelector('#search')?.focus()
+    return
+  }
+
+  if (target.id === 'filter-close' || target.id === 'filter-done') {
+    state.filterOpen = false
+    render()
     return
   }
 
@@ -414,6 +489,21 @@ app.addEventListener('click', (event) => {
 
   if (target.id === 'save') {
     toast(`Saved "${state.groupName}" with ${state.memberIds.size} student(s).`)
+  }
+})
+
+document.addEventListener('click', (event) => {
+  if (state.filterOpen && event.target.id === 'filter-overlay') {
+    state.filterOpen = false
+    render()
+  }
+})
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.filterOpen) {
+    state.filterOpen = false
+    render()
+    document.querySelector('#filter-btn')?.focus()
   }
 })
 

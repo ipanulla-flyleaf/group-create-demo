@@ -213,16 +213,154 @@ body {
 
 /* ---------- layout ---------- */
 
+.workspace-wrap {
+  margin: 28px 40px 40px;
+}
+
+.filter-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--purple);
+}
+
+.filter-btn:hover,
+.filter-btn[aria-expanded='true'] {
+  border-color: var(--purple);
+  background: #fff;
+}
+
+.filter-btn.active::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--purple-bright);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 40, 76, 0.4);
+}
+
+.filter-pop {
+  width: 380px;
+  padding: 16px 20px 14px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(18, 40, 76, 0.3);
+}
+
+.filter-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.filter-field select {
+  height: 36px;
+  border: 1px solid var(--purple);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.filter-pop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 12px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--purple-bright);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-btn:disabled {
+  color: #c7c9d4;
+  cursor: default;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 0;
-  margin: 28px 40px 40px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(18, 40, 76, 0.12);
   overflow: hidden;
   min-height: 620px;
+}
+
+.filter-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding-left: 16px;
+  background: #e8f4fd;
+  border: 1px solid #9cc9ea;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.filter-row strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.filter-row-side {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-left: auto;
+  width: 360px;
+  height: 100%;
+  padding: 0 12px 0 20px;
+  border-left: 1px solid #9cc9ea;
 }
 
 .card-head {
@@ -234,12 +372,9 @@ body {
 
 .card-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-}
-
-.students-card .card-head {
-  padding-left: 16px;
+  color: var(--purple);
 }
 
 /* ---------- students table ---------- */
@@ -253,8 +388,7 @@ body {
 
 .search {
   position: relative;
-  margin-left: auto;
-  width: 310px;
+  width: 100%;
 }
 
 .search svg {
@@ -297,20 +431,6 @@ table.students thead th {
   color: var(--ink);
   padding: 12px 10px;
   white-space: nowrap;
-}
-
-table.students.has-summary thead th {
-  top: 38px;
-}
-
-table.students thead tr.filter-summary th {
-  top: 0;
-  z-index: 2;
-  height: 38px;
-  padding: 0 16px;
-  font-weight: 600;
-  color: var(--muted);
-  vertical-align: middle;
 }
 
 table.students td {
@@ -407,22 +527,6 @@ td.name {
 .th-btn span {
   color: var(--purple-bright);
   font-size: 12px;
-}
-
-.th-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.th-filter select {
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--purple);
-  background: #fff;
-  padding: 1px 2px;
 }
 
 .icon-btn {
@@ -532,20 +636,6 @@ td.name {
   min-height: 0;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--purple-soft);
-  color: var(--purple);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .group-list {
   list-style: none;
   margin: 0;
@@ -574,8 +664,9 @@ td.name {
 
 .group-id {
   font-size: 13px;
+  font-weight: 400;
   color: var(--muted);
-  margin-top: 2px;
+  white-space: nowrap;
 }
 
 .group-empty {
