@@ -113,18 +113,19 @@ body {
 
 .sticky-bar {
   position: fixed;
-  top: 12px;
-  right: 40px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 55;
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 8px 12px 8px 24px;
+  padding: 12px 40px;
   background: #fff;
-  border-radius: 999px;
-  box-shadow: 0 6px 20px rgba(18, 40, 76, 0.25);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgba(18, 40, 76, 0.18);
   opacity: 0;
-  transform: translateY(-16px);
+  transform: translateY(-100%);
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -136,12 +137,13 @@ body {
 }
 
 .sticky-title {
+  font-size: 18px;
   font-weight: 700;
   color: var(--ink);
 }
 
 .sticky-bar .head-actions {
-  margin: 0;
+  margin: 0 0 0 auto;
 }
 
 .form-row {

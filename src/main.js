@@ -18,6 +18,7 @@ const state = {
   teachers: ['Charlotte Davis', 'Daniel Evans'],
   search: '',
   groupSearch: '',
+  groupPage: 1,
   sort: { key: 'name', dir: 'asc' },
   gradeFilter: '',
   filterOpen: false,
@@ -74,6 +75,13 @@ function pageNumbers(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   if (current <= 4) return [1, 2, 3, 4, 5, '…', total]
   if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total]
+  return [1, '…', current - 1, current, current + 1, '…', total]
+}
+
+function groupPageNumbers(current, total) {
+  if (total <= 4) return Array.from({ length: total }, (_, i) => i + 1)
+  if (current <= 3) return [1, 2, 3, '…', total]
+  if (current >= total - 2) return [1, '…', total - 2, total - 1, total]
   return [1, '…', current - 1, current, current + 1, '…', total]
 }
 
@@ -353,6 +361,10 @@ function renderGroupHead(all, list) {
 
 function renderGroupBody(all, list) {
   const searching = Boolean(state.groupSearch.trim())
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE))
+  if (state.groupPage > totalPages) state.groupPage = totalPages
+  const start = (state.groupPage - 1) * PAGE_SIZE
+  const pageItems = list.slice(start, start + PAGE_SIZE)
 
   return `
   <aside class="card group-card">
@@ -360,8 +372,8 @@ function renderGroupBody(all, list) {
 
     <ul class="group-list">
       ${
-        list.length
-          ? list
+        pageItems.length
+          ? pageItems
               .map(
                 (s) => `
         <li class="group-item">
@@ -379,6 +391,27 @@ function renderGroupBody(all, list) {
             : `<li class="group-empty">No students yet. Use <strong>+</strong> to add them.</li>`
       }
     </ul>
+
+    <div class="card-foot group-foot">
+      <nav class="pager" aria-label="Selected student pagination">
+        <button type="button" class="page-btn" data-group-page="${state.groupPage - 1}" ${
+          state.groupPage === 1 ? 'disabled' : ''
+        } aria-label="Previous selected student page">&lsaquo;</button>
+        ${groupPageNumbers(state.groupPage, totalPages)
+          .map((p) =>
+            p === '…'
+              ? `<span class="page-gap">…</span>`
+              : `<button type="button" class="page-btn ${
+                  p === state.groupPage ? 'current' : ''
+                }" data-group-page="${p}">${p}</button>`
+          )
+          .join('')}
+        <button type="button" class="page-btn" data-group-page="${state.groupPage + 1}" ${
+          state.groupPage === totalPages ? 'disabled' : ''
+        } aria-label="Next selected student page">&rsaquo;</button>
+      </nav>
+      <span class="count">${list.length} Students</span>
+    </div>
   </aside>`
 }
 
@@ -543,6 +576,12 @@ app.addEventListener('click', (event) => {
     return
   }
 
+  if (target.dataset.groupPage) {
+    state.groupPage = Number(target.dataset.groupPage)
+    render()
+    return
+  }
+
   if (target.dataset.action === 'discard') {
     state.memberIds.clear()
     state.page = 1
@@ -579,6 +618,7 @@ app.addEventListener('input', (event) => {
       state.page = 1
     } else {
       state.groupSearch = event.target.value
+      state.groupPage = 1
     }
     const caret = event.target.selectionStart
     render()
